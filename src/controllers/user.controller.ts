@@ -1,64 +1,48 @@
 import { PrismaClient } from '@prisma/client'
 import { plainToInstance } from 'class-transformer'
 import { validate, ValidationError } from 'class-validator'
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import jwt from 'jsonwebtoken'
 import { UserDto } from '../dto/user.dto'
 
-const userClient = new PrismaClient().user
+const userClient = new PrismaClient()
 
-export const findUserById = async (req: Request, res: Response) => {
-	try {
-		const user = await userClient.findUnique({
-			where: {
-				id: req.params.id,
-			},
-			include: {
-				subjects: true,
-			},
+interface CustomRequest extends Request {
+	user?: any
+}
+
+export const authenticateJWT = (
+	req: CustomRequest,
+	res: Response,
+	next: NextFunction
+) => {
+	const authHeader = req.headers.authorization
+
+	if (authHeader) {
+		const token = authHeader.split(' ')[1]
+		jwt.verify(token, process.env.JWT_SECRET!, (err: any, decoded: any) => {
+			if (err) {
+				res.status(403).json({ error: 'Invalid or expired token' })
+			}
+			req.user = decoded
+			next()
 		})
-
-		if (!user) {
-			res.status(404).json({ error: 'User not found' })
-		} else {
-			res.status(200).json({ data: user })
-		}
-	} catch (e) {
-		console.error('Error in findUserById:', e)
-		res.status(500).json({ error: 'Server error' })
+	} else {
+		res.status(401).json({ error: 'Authorization header missing' })
 	}
 }
 
-export const createUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: CustomRequest, res: Response) => {
 	try {
+		if (!req.user) res.status(401).json({ error: 'Unauthorized' })
+
 		const userDto = plainToInstance(UserDto, req.body)
 		const errors = await validate(userDto)
 
 		if (errors.length > 0) {
 			res.status(400).json({ errors: formatErrors(errors) })
 		} else {
-			const user = await userClient.create({
-				data: userDto,
-			})
-
-			res.status(201).json({ data: user })
-		}
-
-		console.log(req.body)
-	} catch (e) {
-		console.error('Error in createUser:', e) // Используем console.error
-		res.status(500).json({ error: 'Server error' })
-	}
-}
-
-export const updateUser = async (req: Request, res: Response) => {
-	try {
-		const userDto = plainToInstance(UserDto, req.body)
-		const errors = await validate(userDto)
-
-		if (errors.length > 0) {
-			res.status(400).json({ errors: formatErrors(errors) })
-		} else {
-			const user = await userClient.update({
+			const user = await userClient.user.update({
 				where: {
 					id: req.params.id,
 				},
@@ -77,9 +61,11 @@ export const updateUser = async (req: Request, res: Response) => {
 	}
 }
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: CustomRequest, res: Response) => {
 	try {
-		const user = await userClient.delete({
+		if (!req.user) res.status(401).json({ error: 'Unauthorized' })
+
+		const user = await userClient.user.delete({
 			where: {
 				id: req.params.id,
 			},

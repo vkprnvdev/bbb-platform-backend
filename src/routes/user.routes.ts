@@ -1,16 +1,13 @@
 import { Router } from 'express'
 import {
-	createUser,
+	authenticateJWT,
 	deleteUser,
-	findUserById,
 	updateUser,
 } from '../controllers/user.controller'
 
 const userRouter = Router()
 
-userRouter.get('/:id', findUserById)
-userRouter.post('/', createUser)
-userRouter.put('/:id', updateUser)
-userRouter.delete('/:id', deleteUser)
+userRouter.put('/:id', authenticateJWT, updateUser)
+userRouter.delete('/:id', authenticateJWT, deleteUser)
 
 export default userRouter

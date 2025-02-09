@@ -1,16 +1,9 @@
 import { Router } from 'express'
-import {
-	createUser,
-	deleteUser,
-	findUserById,
-	updateUser,
-} from '../controllers/auth.controller'
+import { login, register } from '../controllers/auth.controller'
 
 const authRouter = Router()
 
-authRouter.get('/:id', findUserById)
-authRouter.post('/', createUser)
-authRouter.put('/:id', updateUser)
-authRouter.delete('/:id', deleteUser)
+authRouter.post('/', register)
+authRouter.get('/', login)
 
 export default authRouter
